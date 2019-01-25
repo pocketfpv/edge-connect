@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from PIL import Image
 from scipy.misc import imread
 from skimage.feature import canny
-from skimage.color import rgb2gray
+from skimage.color import rgb2gray, gray2rgb
 from .utils import create_mask
 
 
@@ -55,6 +55,10 @@ class Dataset(torch.utils.data.Dataset):
         
         # load image
         img = imread(self.data[index])
+
+        # gray to rgb
+        if len(img.shape) < 3:
+            img = gray2rgb(img)
         
         # resize/crop if needed
         if size != 0:
@@ -141,7 +145,8 @@ class Dataset(torch.utils.data.Dataset):
         # test mode: load mask non random
         if mask_type == 6:
             mask = imread(self.mask_data[index])
-            mask = self.resize(mask, imgh, imgw)
+            mask = self.resize(mask, imgh, imgw, centerCrop=False)
+            mask = rgb2gray(mask)
             mask = (mask > 0).astype(np.uint8) * 255
             return mask
 
@@ -150,10 +155,10 @@ class Dataset(torch.utils.data.Dataset):
         img_t = F.to_tensor(img).float()
         return img_t
 
-    def resize(self, img, height, width):
+    def resize(self, img, height, width, centerCrop=True):
         imgh, imgw = img.shape[0:2]
 
-        if imgh != imgw:
+        if centerCrop and imgh != imgw:
             # center crop
             side = np.minimum(imgh, imgw)
             j = (imgh - side) // 2
@@ -171,7 +176,9 @@ class Dataset(torch.utils.data.Dataset):
         # flist: image file path, image directory path, text file flist path
         if isinstance(flist, str):
             if os.path.isdir(flist):
-                return list(glob.glob(flist + '/*.jpg')) + list(glob.glob(flist + '/*.png'))
+                flist = list(glob.glob(flist + '/*.jpg')) + list(glob.glob(flist + '/*.png'))
+                flist.sort()
+                return flist
 
             if os.path.isfile(flist):
                 try:

@@ -23,14 +23,24 @@ class BaseModel(nn.Module):
     def load(self):
         if os.path.exists(self.gen_weights_path):
             print('Loading %s generator...' % self.name)
-            data = torch.load(self.gen_weights_path)
+            
+            if torch.cuda.is_available():
+                data = torch.load(self.gen_weights_path)
+            else: 
+                data = torch.load(self.gen_weights_path, map_location=lambda storage, loc: storage)
+
             self.generator.load_state_dict(data['generator'])
             self.iteration = data['iteration']
 
         # load discriminator only when training
         if self.config.MODE == 1 and os.path.exists(self.dis_weights_path):
             print('Loading %s discriminator...' % self.name)
-            data = torch.load(self.dis_weights_path)
+
+            if torch.cuda.is_available():
+                data = torch.load(self.dis_weights_path)
+            else:
+                data = torch.load(self.dis_weights_path, map_location=lambda storage, loc: storage)
+
             self.discriminator.load_state_dict(data['discriminator'])
 
     def save(self):
@@ -53,7 +63,9 @@ class EdgeModel(BaseModel):
         # discriminator input: (grayscale(1) + edge(1))
         generator = EdgeGenerator(use_spectral_norm=True)
         discriminator = Discriminator(in_channels=2, use_sigmoid=config.GAN_LOSS != 'hinge')
-
+        if len(config.GPU)>1:
+            generator = nn.DataParallel(generator, config.GPU)
+            discriminator = nn.DataParallel(discriminator, config.GPU)
         l1_loss = nn.L1Loss()
         adversarial_loss = AdversarialLoss(type=config.GAN_LOSS)
 
@@ -149,6 +161,9 @@ class InpaintingModel(BaseModel):
         # discriminator input: [rgb(3)]
         generator = InpaintGenerator()
         discriminator = Discriminator(in_channels=3, use_sigmoid=config.GAN_LOSS != 'hinge')
+        if len(config.GPU) > 1:
+            generator = nn.DataParallel(generator, config.GPU)
+            discriminator = nn.DataParallel(discriminator , config.GPU)
 
         l1_loss = nn.L1Loss()
         perceptual_loss = PerceptualLoss()

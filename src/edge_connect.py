@@ -90,11 +90,12 @@ class EdgeConnect():
             epoch += 1
             print('\n\nTraining epoch: %d' % epoch)
 
-            self.edge_model.train()
-            self.inpaint_model.train()
             progbar = Progbar(total, width=20, stateful_metrics=['epoch', 'iter'])
 
             for items in train_loader:
+                self.edge_model.train()
+                self.inpaint_model.train()
+
                 images, images_gray, edges, masks = self.cuda(*items)
 
                 # edge model
@@ -172,7 +173,7 @@ class EdgeConnect():
 
                     # backward
                     self.inpaint_model.backward(i_gen_loss, i_dis_loss)
-                    self.edge_model.backward()
+                    self.edge_model.backward(e_gen_loss, e_dis_loss)
                     iteration = self.inpaint_model.iteration
 
 
